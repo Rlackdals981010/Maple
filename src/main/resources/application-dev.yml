@@ -3,3 +3,7 @@ server:
 spring:
   config:
     import: optional:file:.env[.properties]
+
+nexon:
+  api-key: ${TEST_API}
+  base-url: ${SERVER_URL}

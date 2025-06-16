@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maple.maple.config.NexonApiConfig;
 import com.maple.maple.nexon.dto.response.OcidListResponse;
 import com.maple.maple.nexon.dto.response.OcidResponse;
+import com.maple.maple.nexon.dto.response.StatListResponse;
+import com.maple.maple.nexon.dto.response.StatResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,11 +27,9 @@ public class NexonService {
     private final String[] teamNames = {"김초면", "김측면"};
     private final ObjectMapper objectMapper = new ObjectMapper(); // Jackson ObjectMapper 인스턴스
 
-    private String callApi(String mainApi, String queryParamName, String characterName) {
+    private String callApi(String mainApi, String query) {
         try {
-            String encodedName = URLEncoder.encode(characterName, StandardCharsets.UTF_8);
-            String urlString = config.getBaseUrl() + mainApi + "?" + queryParamName + "=" + encodedName;
-
+            String urlString = config.getBaseUrl() + mainApi + "?" + query;
             URL url = new URL(urlString);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
@@ -53,8 +53,7 @@ public class NexonService {
             }
             in.close();
 
-            JsonNode jsonResponse = objectMapper.readTree(response.toString());
-            return jsonResponse.get("ocid").asText(); // ocid 값만 반환
+            return response.toString();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -62,13 +61,64 @@ public class NexonService {
         }
     }
 
-    public OcidListResponse getTeamOcid() {
-        List<OcidResponse> ocidResponses = new ArrayList<>();
+    private List<String> getTeamOcid() {
+        List<String> ocids = new ArrayList<>();
         for (String name : teamNames) {
-            String ocid = callApi("/maplestory/v1/id", "character_name", name);
-            OcidResponse newOcidResponse = new OcidResponse(name, ocid);
-            ocidResponses.add(newOcidResponse);
+            String encodedName = URLEncoder.encode(name, StandardCharsets.UTF_8);
+            String query = "character_name=" + encodedName;
+            String response = callApi("/maplestory/v1/id", query);
+            if (response != null) {
+                try {
+                    JsonNode jsonResponse = objectMapper.readTree(response);
+                    String ocid = jsonResponse.get("ocid").asText();
+                    ocids.add(ocid);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
-        return new OcidListResponse(ocidResponses);
+        return ocids;
     }
+
+    public StatListResponse getTeamStat() {
+        List<StatResponse> statResponses = new ArrayList<>();
+        List<String> ocids = getTeamOcid();
+
+        // teamNames와 ocids의 인덱스를 매핑하여 이름과 ocid를 함께 사용
+        for (int i = 0; i < ocids.size() && i < teamNames.length; i++) {
+            String ocid = ocids.get(i);
+            String name = teamNames[i];
+            String encodedOcid = URLEncoder.encode(ocid, StandardCharsets.UTF_8);
+            String query = "ocid=" + encodedOcid;
+            String response = callApi("/maplestory/v1/character/stat", query);
+            if (response != null) {
+                try {
+                    JsonNode jsonResponse = objectMapper.readTree(response);
+                    JsonNode finalStat = jsonResponse.get("final_stat");
+                    if (finalStat != null && finalStat.isArray()) {
+                        String statName = finalStat.get(0).get("stat_name").asText();
+                        String statValue = finalStat.get(0).get("stat_value").asText();
+                        StatResponse statResponse = new StatResponse(
+                                name,
+                                finalStat.get(42).get("stat_value").asText(),
+                                finalStat.get(1).get("stat_value").asText(),
+                                finalStat.get(2).get("stat_value").asText(),
+                                finalStat.get(3).get("stat_value").asText(),
+                                finalStat.get(4).get("stat_value").asText(),
+                                finalStat.get(5).get("stat_value").asText(),
+                                finalStat.get(7).get("stat_value").asText(),
+                                finalStat.get(14).get("stat_value").asText(),
+                                finalStat.get(15).get("stat_value").asText()
+                        );
+                        statResponses.add(statResponse);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return new StatListResponse(statResponses);
+    }
+
+
 }

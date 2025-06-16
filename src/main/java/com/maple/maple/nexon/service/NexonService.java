@@ -3,11 +3,11 @@ package com.maple.maple.nexon.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maple.maple.config.NexonApiConfig;
-import com.maple.maple.nexon.dto.response.OcidListResponse;
-import com.maple.maple.nexon.dto.response.OcidResponse;
+
 import com.maple.maple.nexon.dto.response.StatListResponse;
 import com.maple.maple.nexon.dto.response.StatResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -20,16 +20,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class NexonService {
 
     private final NexonApiConfig config;
-    private final String[] teamNames = {"김초면", "김측면"};
+    private final String[] teamNames = {"김초면", "반휘람"};
     private final ObjectMapper objectMapper = new ObjectMapper(); // Jackson ObjectMapper 인스턴스
+    private static String mainApi = "/maplestory/v1";
 
-    private String callApi(String mainApi, String query) {
+    private String callApi(String subApi, String query) {
         try {
-            String urlString = config.getBaseUrl() + mainApi + "?" + query;
+            String urlString = config.getBaseUrl() + mainApi+subApi + "?" + query;
             URL url = new URL(urlString);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
@@ -66,11 +68,12 @@ public class NexonService {
         for (String name : teamNames) {
             String encodedName = URLEncoder.encode(name, StandardCharsets.UTF_8);
             String query = "character_name=" + encodedName;
-            String response = callApi("/maplestory/v1/id", query);
+            String response = callApi("/id", query);
             if (response != null) {
                 try {
                     JsonNode jsonResponse = objectMapper.readTree(response);
                     String ocid = jsonResponse.get("ocid").asText();
+                    log.info(ocid.toString());
                     ocids.add(ocid);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -90,14 +93,12 @@ public class NexonService {
             String name = teamNames[i];
             String encodedOcid = URLEncoder.encode(ocid, StandardCharsets.UTF_8);
             String query = "ocid=" + encodedOcid;
-            String response = callApi("/maplestory/v1/character/stat", query);
+            String response = callApi("/character/stat", query);
             if (response != null) {
                 try {
                     JsonNode jsonResponse = objectMapper.readTree(response);
                     JsonNode finalStat = jsonResponse.get("final_stat");
                     if (finalStat != null && finalStat.isArray()) {
-                        String statName = finalStat.get(0).get("stat_name").asText();
-                        String statValue = finalStat.get(0).get("stat_value").asText();
                         StatResponse statResponse = new StatResponse(
                                 name,
                                 finalStat.get(42).get("stat_value").asText(),

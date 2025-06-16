@@ -1,8 +1,6 @@
 package com.maple.maple.nexon.controller;
 
-import com.maple.maple.nexon.dto.response.OcidListResponse;
 import com.maple.maple.nexon.dto.response.StatListResponse;
-import com.maple.maple.nexon.dto.response.StatResponse;
 import com.maple.maple.nexon.service.NexonService;
 import com.maple.maple.response.response.ApiResponse;
 import com.maple.maple.response.response.ApiResponseMapleEnum;
